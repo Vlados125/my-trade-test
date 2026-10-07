@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SMC Аналіз</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  :root {
+    --bg: var(--tg-theme-bg-color, #0f1419);
+    --card: var(--tg-theme-secondary-bg-color, #182028);
+    --text: var(--tg-theme-text-color, #e8edf2);
+    --hint: var(--tg-theme-hint-color, #8a97a5);
+    --btn: var(--tg-theme-button-color, #2f9e6f);
+    --btn-text: var(--tg-theme-button-text-color, #fff);
+    --line: rgba(128,140,155,.28);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px 16px 32px; background: var(--bg); color: var(--text);
+         font: 15px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--hint); margin: 0 0 16px; font-size: 13px; }
+  .slot { display: block; background: var(--card); border: 1px dashed var(--line); border-radius: 10px;
+          padding: 12px; margin-bottom: 10px; cursor: pointer; }
+  .slot.filled { border-style: solid; }
+  .slot b { display: block; font-size: 14px; }
+  .slot small { color: var(--hint); }
+  .slot img { display: none; width: 100%; max-height: 180px; object-fit: contain; margin-top: 8px; border-radius: 6px; }
+  .slot.filled img { display: block; }
+  .slot input { display: none; }
+  button { width: 100%; padding: 14px; border: 0; border-radius: 10px; background: var(--btn);
+           color: var(--btn-text); font-size: 16px; font-weight: 600; margin-top: 6px; }
+  button:disabled { opacity: .45; }
+  button:focus-visible, .slot:focus-within { outline: 2px solid var(--btn); outline-offset: 2px; }
+  #status { color: var(--hint); text-align: center; margin: 14px 0 0; min-height: 20px; }
+  #status.err { color: #e5534b; }
+  #out { margin-top: 18px; background: var(--card); border-radius: 10px; padding: 14px; display: none; }
+  #out p { margin: 0 0 10px; }
+  #out .verdict { border-left: 3px solid var(--btn); padding-left: 10px; }
+</style>
+</head>
+<body>
+  <h1>Аналіз Smart Money</h1>
+  <p class="sub">Три скріншоти одного активу — від старшого ТФ до робочого.</p>
+
+  <label class="slot" id="slot0"><b>1. Старший ТФ</b><small>1W або 1D</small>
+    <input type="file" accept="image/*"><img alt="Старший ТФ"></label>
+  <label class="slot" id="slot1"><b>2. Середній ТФ</b><small>1D або 4H</small>
+    <input type="file" accept="image/*"><img alt="Середній ТФ"></label>
+  <label class="slot" id="slot2"><b>3. Робочий ТФ</b><small>4H</small>
+    <input type="file" accept="image/*"><img alt="Робочий ТФ"></label>
+
+  <button id="go" disabled>Проаналізувати</button>
+  <p id="status" role="status"></p>
+  <div id="out"></div>
+
+<script>
+const tg = window.Telegram.WebApp;
+tg.ready(); tg.expand();
+
+const API_URL = "/api/analyze";
+const MAX_SIDE = 1600;           // стискаємо, щоб вкластися у ліміт 4.5 МБ на Vercel
+const images = [null, null, null];
+const go = document.getElementById("go");
+const statusEl = document.getElementById("status");
+const out = document.getElementById("out");
+
+function compress(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, MAX_SIDE / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.85));
+    };
+    img.onerror = () => reject(new Error("Не вдалося прочитати зображення"));
+    img.src = url;
+  });
+}
+
+document.querySelectorAll(".slot").forEach((slot, i) => {
+  slot.querySelector("input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await compress(file);
+      images[i] = dataUrl.split(",")[1];
+      slot.querySelector("img").src = dataUrl;
+      slot.classList.add("filled");
+      go.disabled = images.some((x) => !x);
+    } catch (err) { setStatus(err.message, true); }
+  });
+});
+
+function setStatus(msg, isErr) { statusEl.textContent = msg; statusEl.className = isErr ? "err" : ""; }
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+function render(text) {
+  // безпечний мінімальний markdown: **жирний**, списки, абзаци
+  const html = text.split(/\n{2,}/).map((block) => {
+    let b = esc(block).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+    const cls = /^<strong>5\./.test(b) ? ' class="verdict"' : "";
+    return `<p${cls}>${b}</p>`;
+  }).join("");
+  out.innerHTML = html; out.style.display = "block";
+}
+
+go.addEventListener("click", async () => {
+  go.disabled = true; out.style.display = "none";
+  setStatus("Аналізую… це займає 15–40 секунд");
+  try {
+    const r = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData: tg.initData, images }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Помилка сервера");
+    render(data.result); setStatus("");
+    tg.HapticFeedback?.notificationOccurred("success");
+  } catch (e) {
+    setStatus(e.message, true);
+    tg.HapticFeedback?.notificationOccurred("error");
+  } finally { go.disabled = false; }
+});
+</script>
+</body>
+</html>
