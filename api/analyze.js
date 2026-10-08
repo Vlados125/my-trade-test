@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
 
   const labels = ["Старший ТФ", "Середній ТФ", "Робочий ТФ (4H)"];
   
-  // Формуємо контент у форматі OpenAI Vision (з масивом об'єктів тексту та зображень)
+  // Формуємо запит в OpenAI-сумісному форматі для агрегатора
   const contentParts = [
     { type: "text", text: SYSTEM_PROMPT + "\n\nСьогодні " + new Date().toISOString().slice(0, 10) + ". Проаналізуй зв'язку цих 3 скріншотів і відповідай виключно валідним JSON за шаблоном." }
   ];
@@ -112,7 +112,7 @@ module.exports = async (req, res) => {
     }
 
     const text = data.choices?.[0]?.message?.content || "";
-    if (!text) return res.status(502).json({ error: "Порожня відповідь моделі (можливо, спрацював фільтр)" });
+    if (!text) return res.status(502).json({ error: "Порожня відповідь моделі" });
     
     return res.status(200).json({ result: text });
   } catch (e) {
