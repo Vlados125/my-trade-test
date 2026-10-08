@@ -92,7 +92,7 @@ module.exports = async (req, res) => {
     parts.push({ inline_data: { mime_type: "image/jpeg", data } });
   });
 
-  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   try {
