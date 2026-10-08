@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Swing AI Analyzer</title>
+    <title>Swing AI Analyzer & Journal</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -13,7 +13,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
             background: #1e293b;
             padding: 20px;
@@ -47,21 +47,33 @@
         button:hover { background: #0369a1; }
         button:disabled { background: #475569; cursor: not-allowed; }
         #loading { display: none; text-align: center; margin: 15px 0; color: #38bdf8; }
-        #result { 
-            margin-top: 20px; 
-            background: #0f172a; 
-            padding: 15px; 
-            border-radius: 8px; 
-            border: 1px solid #334155; 
+        
+        .journal-section {
+            margin-top: 20px;
+            background: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+        .journal-title {
+            color: #38bdf8;
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 5px;
+        }
+        .report-content {
+            white-space: pre-wrap;
             line-height: 1.6;
             font-size: 14px;
-            white-space: pre-wrap;
+            color: #e2e8f0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Свінг Аналізатор (AI + Binance)</h2>
+        <h2>Свінг Аналізатор & Журнал (AI + Binance)</h2>
         
         <div class="form-group">
             <label for="assetSelect">Оберіть актив:</label>
@@ -94,10 +106,14 @@
             <input type="file" id="file3" accept="image/*">
         </div>
 
-        <button id="analyzeBtn" onclick="startAnalysis()">Проаналізувати</button>
+        <button id="analyzeBtn" onclick="startAnalysis()">Проаналізувати та занести в журнал</button>
 
-        <div id="loading">Аналізуємо графіки та ринкові дані... Зачекайте ⏳</div>
-        <div id="result" style="display: none;"></div>
+        <div id="loading">Аналізуємо ринок і формуємо журнал угод... Зачекайте ⏳</div>
+        
+        <div id="resultContainer" style="display: none;" class="journal-section">
+            <div class="journal-title">📋 Журнал свінг-угод та аналіз</div>
+            <div id="result" class="report-content"></div>
+        </div>
     </div>
 
     <script>
@@ -123,11 +139,12 @@
 
             const btn = document.getElementById('analyzeBtn');
             const loading = document.getElementById('loading');
+            const resultContainer = document.getElementById('resultContainer');
             const resultDiv = document.getElementById('result');
 
             btn.disabled = true;
             loading.style.display = 'block';
-            resultDiv.style.display = 'none';
+            resultContainer.style.display = 'none';
             resultDiv.textContent = '';
 
             try {
@@ -147,7 +164,7 @@
                 if (!response.ok) throw new Error(data.error || "Помилка сервера");
 
                 resultDiv.textContent = data.result;
-                resultDiv.style.display = 'block';
+                resultContainer.style.display = 'block';
             } catch (err) {
                 alert("Помилка: " + err.message);
             } finally {
