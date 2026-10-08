@@ -74,7 +74,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "Потрібно рівно 3 скріншоти" });
   }
   for (const img of images) {
-    if (typeof img !== "string" || !/^[A-Za-z0-9+/=]+$/.test(img) || img.length > 1_400_000) {
+    if (typeof img !== "string" || img.length > 2_000_000) {
       return res.status(400).json({ error: "Некоректне або завелике зображення" });
     }
   }
@@ -89,11 +89,16 @@ module.exports = async (req, res) => {
   ];
 
   images.forEach((data, i) => {
+    // Автоматично визначаємо MIME-тип (підтримує і png, і jpeg, і webp)
+    let mimeType = "image/jpeg";
+    if (data.startsWith("iVBORw0KGgo")) mimeType = "image/png";
+    else if (data.startsWith("UklGR")) mimeType = "image/webp";
+
     contentParts.push({ type: "text", text: `Скріншот ${i + 1}: ${labels[i]}` });
     contentParts.push({
       type: "image_url",
       image_url: {
-        url: `data:image/jpeg;base64,${data}`
+        url: `data:${mimeType};base64,${data}`
       }
     });
   });
