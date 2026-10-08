@@ -47,7 +47,16 @@
         button:hover { background: #0369a1; }
         button:disabled { background: #475569; cursor: not-allowed; }
         #loading { display: none; text-align: center; margin: 15px 0; color: #38bdf8; }
-        #result { margin-top: 20px; background: #0f172a; padding: 15px; border-radius: 8px; border: 1px solid #334155; white-space: pre-wrap; font-family: monospace; font-size: 14px; max-height: 400px; overflow-y: auto; }
+        #result { 
+            margin-top: 20px; 
+            background: #0f172a; 
+            padding: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #334155; 
+            line-height: 1.6;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
     </style>
 </head>
 <body>
@@ -87,8 +96,7 @@
 
         <button id="analyzeBtn" onclick="startAnalysis()">Проаналізувати</button>
 
-        <div id="loading">Збираємо дані з Binance та аналізуємо графіки... Зачекайте хвилину ⏳</div>
-
+        <div id="loading">Аналізуємо графіки та ринкові дані... Зачекайте ⏳</div>
         <div id="result" style="display: none;"></div>
     </div>
 
@@ -97,11 +105,7 @@
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = () => {
-                    // Вирізаємо префікс data:image/...;base64,
-                    const base64String = reader.result.split(',')[1];
-                    resolve(base64String);
-                };
+                reader.onload = () => resolve(reader.result.split(',')[1]);
                 reader.onerror = error => reject(error);
             });
         }
@@ -136,27 +140,14 @@
                 const response = await fetch('/api/analyze', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        asset: asset,
-                        images: [b64_1, b64_2, b64_3]
-                    })
+                    body: JSON.stringify({ asset: asset, images: [b64_1, b64_2, b64_3] })
                 });
 
                 const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.error || "Помилка сервера");
-                }
+                if (!response.ok) throw new Error(data.error || "Помилка сервера");
 
-                // Форматуємо JSON для красивого відображення
-                let parsedJson;
-                try {
-                    parsedJson = JSON.parse(data.result);
-                    resultDiv.textContent = JSON.stringify(parsedJson, null, 2);
-                } catch (e) {
-                    resultDiv.textContent = data.result;
-                }
+                resultDiv.textContent = data.result;
                 resultDiv.style.display = 'block';
-
             } catch (err) {
                 alert("Помилка: " + err.message);
             } finally {
