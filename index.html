@@ -28,43 +28,131 @@
   .slot img { display: none; width: 100%; max-height: 180px; object-fit: contain; margin-top: 8px; border-radius: 6px; }
   .slot.filled img { display: block; }
   .slot input { display: none; }
+  input.key { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid var(--line);
+              background: var(--card); color: var(--text); font-size: 15px; margin: 8px 0; }
   button { width: 100%; padding: 14px; border: 0; border-radius: 10px; background: var(--btn);
            color: var(--btn-text); font-size: 16px; font-weight: 600; margin-top: 6px; }
   button:disabled { opacity: .45; }
-  button:focus-visible, .slot:focus-within { outline: 2px solid var(--btn); outline-offset: 2px; }
+  button:focus-visible, .slot:focus-within, input.key:focus-visible { outline: 2px solid var(--btn); outline-offset: 2px; }
+  a.link { background: none; color: var(--hint); font-size: 13px; font-weight: 400; text-decoration: underline;
+           width: auto; padding: 8px 0; display: inline-block; border: 0; cursor: pointer; }
   #status { color: var(--hint); text-align: center; margin: 14px 0 0; min-height: 20px; }
   #status.err { color: #e5534b; }
   #out { margin-top: 18px; background: var(--card); border-radius: 10px; padding: 14px; display: none; }
   #out p { margin: 0 0 10px; }
   #out .verdict { border-left: 3px solid var(--btn); padding-left: 10px; }
+  #setup, #main { display: none; }
 </style>
 </head>
 <body>
+<div id="setup">
+  <h1>Перший запуск</h1>
+  <p class="sub">Встав свій ключ Gemini (з aistudio.google.com/apikey). Він збережеться лише на цьому пристрої.</p>
+  <input class="key" id="keyInput" type="password" placeholder="Ключ Gemini API" autocomplete="off">
+  <button id="saveKey">Зберегти</button>
+</div>
+
+<div id="main">
   <h1>Аналіз Smart Money</h1>
   <p class="sub">Три скріншоти одного активу — від старшого ТФ до робочого.</p>
 
-  <label class="slot" id="slot0"><b>1. Старший ТФ</b><small>1W або 1D</small>
+  <label class="slot"><b>1. Старший ТФ</b><small>1W або 1D</small>
     <input type="file" accept="image/*"><img alt="Старший ТФ"></label>
-  <label class="slot" id="slot1"><b>2. Середній ТФ</b><small>1D або 4H</small>
+  <label class="slot"><b>2. Середній ТФ</b><small>1D або 4H</small>
     <input type="file" accept="image/*"><img alt="Середній ТФ"></label>
-  <label class="slot" id="slot2"><b>3. Робочий ТФ</b><small>4H</small>
+  <label class="slot"><b>3. Робочий ТФ</b><small>4H</small>
     <input type="file" accept="image/*"><img alt="Робочий ТФ"></label>
 
   <button id="go" disabled>Проаналізувати</button>
   <p id="status" role="status"></p>
   <div id="out"></div>
+  <button class="link" id="changeKey" type="button" style="background:none;color:var(--hint);font-size:13px;font-weight:400;text-decoration:underline;">Змінити ключ</button>
+</div>
 
 <script>
 const tg = window.Telegram.WebApp;
 tg.ready(); tg.expand();
 
-const API_URL = "/api/analyze";
-const MAX_SIDE = 1600;           // стискаємо, щоб вкластися у ліміт 4.5 МБ на Vercel
-const images = [null, null, null];
-const go = document.getElementById("go");
-const statusEl = document.getElementById("status");
-const out = document.getElementById("out");
+const MODEL = "gemini-2.5-flash";
+const MAX_SIDE = 1600;
+const KEY_NAME = "gemini_key";
 
+const SYSTEM_PROMPT = `Ти — професійний свінг-трейдер, експерт зі Smart Money Concepts (CHoCH, BOS, Order Blocks, FVG, Premium/Discount, Equilibrium, ліквідність) та Price Action. Користувач торгує ПАСИВНО: виставляє відкладені лімітні ордери і не чекає підтверджень на молодших ТФ.
+
+Тобі надано 3 скріншоти ОДНОГО активу в порядку: 1) старший ТФ (1W/1D), 2) середній ТФ (1D/4H), 3) робочий ТФ (4H).
+
+ПРАВИЛА:
+- Спирайся лише на те, що реально видно на скріншотах (свічки, ціни на осі, індикатори, мітки CHoCH/BOS, зони Premium/Discount, фрактали). Не вигадуй рівні. Якщо ціну на осі не видно — скажи про це.
+- Якщо скріншоти явно з різних активів або порядок ТФ порушено — вкажи це першим рядком і не давай торгових рівнів.
+- Йди зверху вниз: старший ТФ задає напрямок, середній — зону, робочий — точку входу.
+- Рівні вказуй числами з осі ціни (діапазон допустимий для зони).
+- Відповідай українською, суворо за шаблоном нижче, без вступів і зайвого тексту.
+
+ШАБЛОН:
+**1. Актив і мова**
+Актив: ... | Таймфрейми: ... | Мова інтерфейсу графіків: ...
+
+**2. Повна картина ринку**
+Глобальний тренд і структура (старший ТФ), проміжна структура (середній ТФ), де ціна зараз відносно діапазону: Premium / Discount / Equilibrium.
+
+**3. Ключові зони інтересу**
+Список зон для лімітних ордерів: діапазон цін, тип (OB/FVG/ліквідність/Discount тощо), чому важлива, напрямок.
+
+**4. Сценарії (сума = 100%)**
+- Сценарій А (...): XX% — умови і ціль
+- Сценарій Б (...): XX% — умови і ціль
+- Сценарій В (флет / немає чіткого бачення): XX%
+
+**5. Вердикт**
+Або: «Зараз зона для розміщення відкладеного лімітного ордера на рівні [X] зі стоп-лоссом за фракталом [Y]. Ціль: [T]. Орієнтовний RR: [R].»
+Або: «Зараз невизначеність / середина діапазону (Equilibrium) — краще утриматися від угоди / немає чіткого бачення.»
+
+Наприкінці одним рядком: «Це аналітична гіпотеза, а не фінансова порада.»`;
+
+const $ = (id) => document.getElementById(id);
+const images = [null, null, null];
+const go = $("go"), statusEl = $("status"), out = $("out");
+
+// --- зберігання ключа (Telegram CloudStorage, запасний варіант — localStorage) ---
+const store = {
+  get: (k) => new Promise((res) => {
+    if (tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast("6.9")) {
+      tg.CloudStorage.getItem(k, (e, v) => res(!e && v ? v : (localStorage.getItem(k) || "")));
+    } else res(localStorage.getItem(k) || "");
+  }),
+  set: (k, v) => new Promise((res) => {
+    try { localStorage.setItem(k, v); } catch (e) {}
+    if (tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast("6.9")) tg.CloudStorage.setItem(k, v, () => res());
+    else res();
+  }),
+  del: (k) => new Promise((res) => {
+    try { localStorage.removeItem(k); } catch (e) {}
+    if (tg.CloudStorage && tg.isVersionAtLeast && tg.isVersionAtLeast("6.9")) tg.CloudStorage.removeItem(k, () => res());
+    else res();
+  }),
+};
+
+let apiKey = "";
+function show(which) {
+  $("setup").style.display = which === "setup" ? "block" : "none";
+  $("main").style.display = which === "main" ? "block" : "none";
+}
+(async () => {
+  apiKey = await store.get(KEY_NAME);
+  show(apiKey ? "main" : "setup");
+})();
+
+$("saveKey").addEventListener("click", async () => {
+  const v = $("keyInput").value.trim();
+  if (v.length < 20) return;
+  apiKey = v; await store.set(KEY_NAME, v);
+  $("keyInput").value = ""; show("main");
+});
+$("changeKey").addEventListener("click", async () => {
+  await store.del(KEY_NAME); apiKey = ""; show("setup");
+});
+
+// --- завантаження і стиснення зображень ---
 function compress(file) {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
@@ -100,30 +188,47 @@ function setStatus(msg, isErr) { statusEl.textContent = msg; statusEl.className 
 const esc = (s) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
 
 function render(text) {
-  // безпечний мінімальний markdown: **жирний**, списки, абзаци
   const html = text.split(/\n{2,}/).map((block) => {
-    let b = esc(block).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
+    const b = esc(block).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/\n/g, "<br>");
     const cls = /^<strong>5\./.test(b) ? ' class="verdict"' : "";
     return `<p${cls}>${b}</p>`;
   }).join("");
   out.innerHTML = html; out.style.display = "block";
 }
 
+// --- запит до Gemini ---
 go.addEventListener("click", async () => {
   go.disabled = true; out.style.display = "none";
   setStatus("Аналізую… це займає 15–40 секунд");
+  const labels = ["Старший ТФ (1W/1D)", "Середній ТФ (1D/4H)", "Робочий ТФ (4H)"];
+  const parts = [{ text: "Проаналізуй зв'язку цих трьох скріншотів одного активу за шаблоном." }];
+  images.forEach((data, i) => {
+    parts.push({ text: `Скріншот ${i + 1}: ${labels[i]}` });
+    parts.push({ inline_data: { mime_type: "image/jpeg", data } });
+  });
   try {
-    const r = await fetch(API_URL, {
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ initData: tg.initData, images }),
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 8192 },
+      }),
     });
     const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Помилка сервера");
-    render(data.result); setStatus("");
+    if (!r.ok) {
+      const msg = data?.error?.message || "Помилка Gemini API";
+      if (r.status === 400 && /api key/i.test(msg)) throw new Error("Ключ не підходить. Натисни «Змінити ключ» і встав новий.");
+      if (r.status === 429) throw new Error("Ліміт безкоштовних запитів вичерпано. Спробуй трохи пізніше.");
+      throw new Error(msg);
+    }
+    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("").trim();
+    if (!text) throw new Error("Порожня відповідь моделі. Спробуй ще раз.");
+    render(text); setStatus("");
     tg.HapticFeedback?.notificationOccurred("success");
   } catch (e) {
-    setStatus(e.message, true);
+    setStatus(e.message === "Failed to fetch" ? "Немає з'єднання з Gemini. Перевір інтернет." : e.message, true);
     tg.HapticFeedback?.notificationOccurred("error");
   } finally { go.disabled = false; }
 });
