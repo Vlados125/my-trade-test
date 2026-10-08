@@ -20,12 +20,10 @@ const SYSTEM_PROMPT = `Ти — досвідчений професійний с
 {"asset":"BTC","bias":"long|short|none","summary":"до 350 символів: свінг-контекст, тренд за 100 днів 1D, вплив фандингу та головна ідея угоди","zones":[{"side":"buy|sell","from":0,"to":0,"type":"OB/FVG/ліквідність тощо","why":"до 80 символів"}],"scenarios":[{"name":"А: назва сценарію","pct":50,"text":"до 120 символів"},{"name":"Б: ...","pct":30,"text":"..."},{"name":"В: ...","pct":20,"text":"..."}],"factors":["до 120 символів: техніка, історія 1D, фандинг"],"order":{"entry":null,"stop":null,"note":"до 120 символів: умова входу та обґрунтування свінг-стопу"}}
 Сума pct = 100. Максимум 4 зони. Числа — числами, не рядками.`;
 
-// Потужна функція збору макроданих та історії 1D (100 свічок) з Binance
 async function fetchDeepMarketData(assetSymbol = "BTC") {
   try {
     const symbol = (assetSymbol || "BTC").toUpperCase() + "USDT";
     
-    // Паралельні запити: фандинг, тікер за 24г, та історія 1D свічок (100 штук)
     const [fundingRes, tickerRes, klinesRes] = await Promise.all([
       fetch(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${symbol}`).catch(() => null),
       fetch(`https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${symbol}`).catch(() => null),
@@ -81,7 +79,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Отримуємо глибокі ринкові дані по обраній монеті (напр. BTC, ETH тощо)
   const selectedAsset = asset || "BTC";
   const deepMarketContext = await fetchDeepMarketData(selectedAsset);
 
@@ -111,7 +108,7 @@ module.exports = async (req, res) => {
         "Authorization": `Bearer ${GEMINI_API_KEY}`
       },
       body: JSON.stringify({
-        model: "ag/gem/3-flash", // або ваша поточна модельag/gemini-3-flash
+        model: "ag/gemini-3-flash",
         messages: [{ role: "user", content: contentParts }],
         temperature: 0.3,
         max_tokens: 8192
