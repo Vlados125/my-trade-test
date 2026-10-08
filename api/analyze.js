@@ -1,15 +1,11 @@
-const SYSTEM_PROMPT = `Ти — досвідчений професійний свінг-трейдер (Smart Money Concepts: CHoCH, BOS, OB, FVG, Premium/Discount, Equilibrium, ліквідність; Price Action) та макроаналітик. 
-Користувач торгує СВІНГ (позиційно): тримає угоди від кількох днів до тижнів.
-Надано:
-1) Обраний актив та макроісторію за останні 100 денних свічок (1D).
-2) Оперативні дані з біржі (Funding Rate).
-3) 3 скріншоти аналізу (Старший ТФ, Середній ТФ, Робочий ТФ).
+const SYSTEM_PROMPT = `Ти — професійний свінг-трейдер (Smart Money Concepts та Price Action). 
+Проаналізуй актив та 3 скріншоти. Обов'язково поверни відповідь у вигляді структурованого блоку, який містить:
+1. Загальний контекст (тренд, старші ТФ).
+2. Торговий план з конкретними числовими значеннями: Актив, Напрямок (LONG/SHORT), Точка входу (Entry), Стоп-лос (Stop Loss), Тейк-профіти (Take Profit), співвідношення R:R.
+3. Сценарії розвитку подій із відсотковою ймовірністю (прохідністю).
+4. Таблицю / журнал угоди (asset, direction, entry, stop, take, winrate, status).
 
-ПРАВИЛА:
-- Рівні бери лише з того, що видно на скріншотах.
-- Вкажи точні значення для: Entry (Вхід), Stop Loss (Стоп-лос) та Take Profit (Тейк-профіт, співвідношення мінімум 1:2).
-- Надай чіткі сценарії розвитку подій у відсотках (Winrate / ймовірність).
-- Відповідай українською мовою, структура має бути зручною для читання (з заголовками, рівнями та висновками).`;
+Пиши українською мовою, чітко, професійно, без зайвої «води».`;
 
 async function fetchDeepMarketData(assetSymbol = "BTC") {
   try {
@@ -33,7 +29,7 @@ async function fetchDeepMarketData(assetSymbol = "BTC") {
           const high100 = Math.max(...klines.map(k => parseFloat(k[2])));
           const low100 = Math.min(...klines.map(k => parseFloat(k[3])));
           const lastClose = parseFloat(klines[klines.length - 1][4]);
-          klineSummary = `Історія 1D: Максимум: ${high100}, Мінімум: ${low100}, Поточна ціна: ${lastClose}.`;
+          klineSummary = `Історія 1D (100 днів): Max: ${high100}, Min: ${low100}, Поточна ціна: ${lastClose}.`;
         }
       }
       report = `Актив: ${symbol}, Ціна: ${ticker.lastPrice}, Зміна 24г: ${ticker.priceChangePercent}%, Funding: ${fundingRatePct}%. ${klineSummary}`;
@@ -64,7 +60,7 @@ module.exports = async (req, res) => {
   const labels = ["Старший ТФ (1W/1D)", "Середній ТФ (1D/4H)", "Робочий ТФ (4H)"];
   
   const contentParts = [
-    { type: "text", text: SYSTEM_PROMPT + `\n\nАктив: ${selectedAsset}\nДані Binance: ${deepMarketContext}\nСформуй відповідь у такому форматі:\n1. 📊 ЗАГАЛЬНИЙ КОНТЕКСТ ТА ТРЕНД\n2. 🎯 ТОРГОВИЙ ПЛАН (Entry, Stop Loss, Take Profit)\n3. 📈 СЦЕНАРІЇ ТА ПРОХІДНІСТЬ (у відсотках)\n4. 📝 ЖУРНАЛ / КЛЮЧОВІ ФАКТОРИ` }
+    { type: "text", text: SYSTEM_PROMPT + `\n\nАктив: ${selectedAsset}\nДані Binance: ${deepMarketContext}\nСформуй розгорнутий аналіз із журналом угод та чіткими рівнями Entry, Stop, Take.` }
   ];
 
   images.forEach((data, i) => {
