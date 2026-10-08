@@ -211,18 +211,18 @@ let R=null;
 $("go").onclick=async()=>{
   $("go").disabled=true;setSt("Аналізую… 20–60 секунд");
   try{
-    const order=[MODEL,MODEL,FALLBACK,FALLBACK];let tools=true,r,d;
+    const order=[MODEL,FALLBACK];let tools=!lget("no_tools"),r,d;
     for(let n=0;n<order.length;n++){
       if(n>0)setSt("Сервер Google перевантажений, пробую ще раз ("+n+"/"+(order.length-1)+")…");
       ({r,d}=await gem(order[n],tools));
-      if(r.status===400&&tools&&!/api key/i.test((d.error&&d.error.message)||"")){tools=false;({r,d}=await gem(order[n],false))}
+      if(r.status===400&&tools&&!/api key/i.test((d.error&&d.error.message)||"")){tools=false;lset("no_tools","1");({r,d}=await gem(order[n],false))}
       if(r.status!==503&&r.status!==500)break;
-      await sleep(2000+3000*n);
+      await sleep(4000);
     }
     if(!r.ok){
       const m=(d.error&&d.error.message)||"Помилка Gemini API";
       if(r.status===400&&/api key/i.test(m))throw new Error("Ключ не підходить. Натисни «Змінити ключ».");
-      if(r.status===429)throw new Error("Ліміт безкоштовних запитів вичерпано. Спробуй пізніше.");
+      if(r.status===429)throw new Error(/PerDay|per day/i.test(m)?"Вичерпано добовий ліміт (20 запитів). Скидається близько 10:00 за Києвом.":"Забагато запитів за хвилину. Зачекай 1-2 хвилини і спробуй знову.");
       throw new Error(m);
     }
     const txt=(((d.candidates||[])[0]||{}).content||{parts:[]}).parts.map(p=>p.text||"").join("").trim();
