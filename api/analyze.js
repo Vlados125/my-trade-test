@@ -1,38 +1,19 @@
 // Vercel Serverless Function (Node 18+)
-// ENV: BOT_TOKEN, GEMINI_API_KEY, [GEMINI_MODEL], [ALLOWED_USER_IDS="123,456"]
+// ENV: BOT_TOKEN, GEMINI_API_KEY, [ALLOWED_USER_IDS="123,456"]
 const crypto = require("crypto");
 
-const SYSTEM_PROMPT = `Ти — професійний свінг-трейдер, експерт зі Smart Money Concepts (CHoCH, BOS, Order Blocks, FVG, Premium/Discount, Equilibrium, ліквідність) та Price Action. Користувач торгує ПАСИВНО: виставляє відкладені лімітні ордери і не чекає підтверджень на молодших ТФ.
-
-Тобі надано 3 скріншоти ОДНОГО активу в порядку: 1) старший ТФ (1W/1D), 2) середній ТФ (1D/4H), 3) робочий ТФ (4H).
-
+const SYSTEM_PROMPT = `Ти — досвідчений свінг-трейдер (Smart Money Concepts: CHoCH, BOS, OB, FVG, Premium/Discount, Equilibrium, ліквідність; Price Action). Користувач торгує ПАСИВНО: ставить відкладені лімітні ордери, без підтверджень на молодших ТФ.
+Надано 3 скріншоти ОДНОГО активу: 1) старший ТФ, 2) середній ТФ, 3) робочий ТФ (4H).
 ПРАВИЛА:
-- Спирайся лише на те, що реально видно на скріншотах (свічки, ціни на осі, індикатори, мітки CHoCH/BOS, зони Premium/Discount, фрактали). Не вигадуй рівні. Якщо ціну на осі не видно — скажи про це.
-- Якщо скріншоти явно з різних активів або порядок ТФ порушено — вкажи це першим рядком і не давай торгових рівнів.
-- Йди зверху вниз: старший ТФ задає напрямок, середній — зону, робочий — точку входу.
-- Рівні вказуй числами з осі ціни (діапазон допустимий для зони).
-- Відповідай українською, суворо за шаблоном нижче, без вступів і зайвого тексту.
-
-ШАБЛОН:
-**1. Актив і мова**
-Актив: ... | Таймфрейми: ... | Мова інтерфейсу графіків: ...
-
-**2. Повна картина ринку**
-Глобальний тренд і структура (старший ТФ), проміжна структура (середній ТФ), де ціна зараз відносно діапазону: Premium / Discount / Equilibrium.
-
-**3. Ключові зони інтересу**
-Список зон для лімітних ордерів: діапазон цін, тип (OB/FVG/ліквідність/Discount тощо), чому важлива, напрямок.
-
-**4. Сценарії (сума = 100%)**
-- Сценарій А (...): XX% — умови і ціль
-- Сценарій Б (...): XX% — умови і ціль
-- Сценарій В (флет / немає чіткого бачення): XX%
-
-**5. Вердикт**
-Або: «Зараз зона для розміщення відкладеного лімітного ордера на рівні [X] зі стоп-лоссом за фракталом [Y]. Ціль: [T]. Орієнтовний RR: [R].»
-Або: «Зараз невизначеність / середина діапазону (Equilibrium) — краще утриматися від угоди / немає чіткого бачення.»
-
-Наприкінці одним рядком: «Це аналітична гіпотеза, а не фінансова порада.»`;
+- Рівні бери лише з того, що видно на скріншотах (ціни на осі, мітки, зони). Не вигадуй. Якщо скріншоти з різних активів або ціни не видно — bias "none" і поясни в summary.
+- Старший ТФ задає напрямок, середній — зону, робочий — рівень входу.
+- Вхід (entry) — всередині ключової зони, стоп (stop) — за фракталом/інвалідацією зони. Тейк НЕ потрібен: його рахує додаток за співвідношенням 1:2.
+- Якщо до протилежної сильної зони менше 2R від входу, або ціна в середині діапазону (Equilibrium), або видимість слабка — bias "none".
+- Якщо скріншотів недостатньо для висновку (новини, фандинг/OI, домінація BTC, макроподії FOMC/CPI, потоки ETF, події монети), скористайся пошуком Google і додай до 3 коротких факторів із датою. Якщо суттєвого нічого немає — порожній масив.
+- Пиши українською, дуже стисло.
+ВІДПОВІДЬ — ЛИШЕ JSON без markdown і без тексту навколо:
+{"asset":"BTC","bias":"long|short|none","summary":"до 200 символів: тренд, де ціна в діапазоні, головна ідея","zones":[{"side":"buy|sell","from":0,"to":0,"type":"OB/FVG/ліквідність тощо","why":"до 60 символів"}],"scenarios":[{"name":"А: коротка назва","pct":50,"text":"до 80 символів"},{"name":"Б: ...","pct":30,"text":"..."},{"name":"В: флет / немає бачення","pct":20,"text":"..."}],"factors":["до 90 символів"],"order":{"entry":null,"stop":null,"note":"до 90 символів: умова входу або чому краще не торгувати"}}
+Сума pct = 100. Максимум 4 зони. Числа — числами, не рядками.`;
 
 function verifyInitData(initData, botToken) {
   if (!initData) return null;
@@ -85,33 +66,54 @@ module.exports = async (req, res) => {
     }
   }
 
-  const labels = ["Старший ТФ (1W/1D)", "Середній ТФ (1D/4H)", "Робочий ТФ (4H)"];
-  const parts = [{ text: "Проаналізуй зв'язку цих трьох скріншотів одного активу за шаблоном." }];
+  const labels = ["Старший ТФ", "Середній ТФ", "Робочий ТФ (4H)"];
+  
+  // Формуємо контент у форматі OpenAI Vision (з масивом об'єктів тексту та зображень)
+  const contentParts = [
+    { type: "text", text: SYSTEM_PROMPT + "\n\nСьогодні " + new Date().toISOString().slice(0, 10) + ". Проаналізуй зв'язку цих 3 скріншотів і відповідай виключно валідним JSON за шаблоном." }
+  ];
+
   images.forEach((data, i) => {
-    parts.push({ text: `Скріншот ${i + 1}: ${labels[i]}` });
-    parts.push({ inline_data: { mime_type: "image/jpeg", data } });
+    contentParts.push({ type: "text", text: `Скріншот ${i + 1}: ${labels[i]}` });
+    contentParts.push({
+      type: "image_url",
+      image_url: {
+        url: `data:image/jpeg;base64,${data}`
+      }
+    });
   });
 
-  const model = process.env.GEMINI_MODEL || "gemini-1.5-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const url = "https://anymodel.org/v1/chat/completions";
 
   try {
     const r = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": GEMINI_API_KEY },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GEMINI_API_KEY}`
+      },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 4096 },
+        model: "ag/gemini-3-flash",
+        messages: [
+          {
+            role: "user",
+            content: contentParts
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 8192
       }),
     });
+
     const data = await r.json();
     if (!r.ok) {
-      const msg = data?.error?.message || "Помилка Gemini API";
+      const msg = data?.error?.message || "Помилка API запиту";
       return res.status(r.status === 429 ? 429 : 502).json({ error: msg });
     }
-    const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("").trim();
+
+    const text = data.choices?.[0]?.message?.content || "";
     if (!text) return res.status(502).json({ error: "Порожня відповідь моделі (можливо, спрацював фільтр)" });
+    
     return res.status(200).json({ result: text });
   } catch (e) {
     return res.status(500).json({ error: "Помилка сервера: " + e.message });
