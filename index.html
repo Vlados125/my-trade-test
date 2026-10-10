@@ -53,6 +53,7 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 .shbg{position:absolute;inset:0;background:rgba(0,0,0,.55)}
 .shc{position:relative;width:100%;max-height:92vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.err{color:var(--r);min-height:16px;margin:2px 0;font-size:12px}
+.ln{display:flex;gap:8px;margin-top:8px}.ln p{margin:0}.idea{background:var(--bg);border-left:3px solid var(--ac);border-radius:8px;padding:8px 10px;margin:10px 0;font-weight:600}
 </style>
 </head>
 <body>
@@ -107,7 +108,7 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 <script>
 const tg=window.Telegram.WebApp;tg.ready();tg.expand();
 try{tg.disableVerticalSwipes&&tg.disableVerticalSwipes()}catch(e){}
-const MAX_SIDE=1600;
+const MAX_SIDE=1280;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const num=v=>{if(typeof v==="number")return isFinite(v)?v:null;if(v==null||v==="")return null;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?n:null};
@@ -168,7 +169,7 @@ function parseJSON(t){
   if(a<0||b<=a)return null;try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}
 }
 const mdLite=t=>esc(t).replace(/^\s*#{1,6}\s*(.+)$/gm,"<b>$1</b>").replace(/^\s*[-*]\s+/gm,"• ").replace(/^\s*-{3,}\s*$/gm,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\*(.+?)\*/g,"$1").replace(/\n{3,}/g,"\n\n");
-let R=null,M=null;
+let R=null,M=null,U=0,addedId=null;
 $("go").onclick=async()=>{
   $("go").disabled=true;setSt("Аналізую… 20–60 секунд");
   try{
@@ -176,7 +177,7 @@ $("go").onclick=async()=>{
     const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData,asset,images})});
     let d={};try{d=await r.json()}catch(e){}
     if(!r.ok)throw new Error(d.error||(r.status===413?"Скріншоти завеликі":"Помилка сервера ("+r.status+")"));
-    R=d.analysis||parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;$("rseg").hidden=!!R.raw;
+    R=d.analysis||parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;U=d.tokens||0;$("rseg").hidden=!!R.raw;autoAdd();
     if(R&&!R.raw&&!R.asset)R.asset=asset;
     $("up").hidden=true;$("res").hidden=false;setSeg("rseg","v");renderPane("v");setSt("");
     tg.HapticFeedback&&tg.HapticFeedback.notificationOccurred("success");
@@ -195,32 +196,42 @@ function plan(){
   if((bias==="long"&&s>=e)||(bias==="short"&&s<=e))return null;
   return{e,s,t:rnd(e+2*(e-s)),risk:Math.abs(e-s)/e*100};
 }
+function autoAdd(){
+  addedId=null;const pl=plan();if(!pl)return;
+  const coin=String(R.asset||"").toUpperCase();
+  const dup=J.items.find(t=>t.coin===coin&&num(t.entry)===pl.e&&num(t.stop)===pl.s&&t.status==="pending");
+  if(dup){addedId=dup.id;return}
+  const t={id:Date.now(),coin,side:R.bias,entry:pl.e,stop:pl.s,tp:pl.t,status:"pending"};
+  J.items.push(t);addedId=t.id;saveJ();
+}
 function renderPane(v){
   const p=$("pane");
   if(!R||R.raw){p.innerHTML='<div class="card raw">'+mdLite(R?R.raw:"")+"</div>";return}
+  const ft=U?'<p class="c hint" style="margin:4px 0 0"><small>⚙️ Токенів на аналіз: '+U+"</small></p>":"";
   if(v==="s"){
-    p.innerHTML=(R.scenarios||[]).slice(0,3).map(s=>{const n=Math.min(100,Math.max(0,num(s.pct)||0));
-      return '<div class="card"><div class="hd"><b>'+esc(s.name)+"</b><b>"+Math.round(n)+'%</b></div><div class="bar"><i style="width:'+n+'%"></i></div><small class="hint">'+esc(s.text)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>';
+    const em=["🎯","🔄","➖"],col=["var(--g)","#e0a526","var(--hint)"];
+    p.innerHTML=((R.scenarios||[]).slice(0,3).map((s,i)=>{const n=Math.min(100,Math.max(0,num(s.pct)||0));
+      return '<div class="card"><div class="hd"><b>'+em[i]+" "+esc(s.name)+'</b><b style="font-size:17px;color:'+col[i]+'">'+Math.round(n)+'%</b></div><div class="bar"><i style="width:'+n+"%;background:"+col[i]+'"></i></div><small class="hint">'+esc(s.text)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>')+ft;
     return;
   }
   if(v==="z"){
-    p.innerHTML=(R.zones||[]).slice(0,4).map(z=>{const sell=z.side==="sell";
-      return '<div class="card"><div class="hd"><b>'+fmt(num(z.from))+" – "+fmt(num(z.to))+'</b><span class="bd '+(sell?"short":"long")+'">'+(sell?"ПРОДАЖ":"ПОКУПКА")+"</span></div><small>"+esc(z.type)+'</small><br><small class="hint">'+esc(z.why)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>';
+    p.innerHTML=((R.zones||[]).slice(0,3).map(z=>{const sell=z.side==="sell";
+      return '<div class="card"><div class="hd"><b>'+fmt(num(z.from))+" – "+fmt(num(z.to))+'</b><span class="bd '+(sell?"short":"long")+'">'+(sell?"🔴 ПРОДАЖ":"🟢 ПОКУПКА")+"</span></div><small><b>"+esc(z.type)+'</b></small><br><small class="hint">'+esc(z.why)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>')+ft;
     return;
   }
-  const pl=plan(),lab=pl?(R.bias==="long"?"ЛОНГ":"ШОРТ"):"ЧЕКАТИ",cls=pl?R.bias:"none",price=M&&num(M.price);
-  let h='<div class="card"><div class="hd"><b style="font-size:16px">'+esc(R.asset)+'</b><span class="bd big '+cls+'">'+lab+"</span></div>";
-  if(M&&price!=null)h+='<small class="hint">Ціна '+fmt(price)+" · 24г "+(num(M.change)>0?"+":"")+esc(M.change)+"% · funding "+esc(M.funding)+"</small>";
-  h+="<p>"+esc(R.summary)+"</p>";
-  if(pl){
-    h+='<div class="grid3"><div class="nm"><small>Вхід (ліміт)</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>Тейк 1:2</small><b>'+fmt(pl.t)+'</b></div></div><small class="hint">Ризик до стопу '+pl.risk.toFixed(2)+"%"+(price?" · вхід на "+((pl.e-price)/price*100).toFixed(2)+"% від ціни":"")+". "+esc(R.order&&R.order.note)+"</small>";
-  }else h+='<small class="hint">'+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
+  const pl=plan(),price=M&&num(M.price),lab=pl?(R.bias==="long"?"🟢 ЛОНГ":"🔴 ШОРТ"):"⚪ ЧЕКАТИ",cls=pl?R.bias:"none";
+  let h='<div class="card"><div class="hd"><b style="font-size:17px">'+esc(R.asset)+'</b><span class="bd big '+cls+'">'+lab+"</span></div>";
+  if(M&&price!=null)h+='<small class="hint">💵 '+fmt(price)+" · 24г "+(num(M.change)>0?"+":"")+esc(M.change)+"% · funding "+esc(M.funding)+"</small>";
+  h+='<div class="ln"><span>📈</span><p><b>Тренд.</b> '+esc(R.trend)+'</p></div><div class="ln"><span>📍</span><p><b>Позиція.</b> '+esc(R.position)+"</p></div>";
+  h+='<div class="idea">💡 '+esc(R.idea)+"</div>";
+  if(pl)h+='<div class="grid3"><div class="nm"><small>🎯 Вхід</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>🛑 Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>✅ Тейк 1:2</small><b>'+fmt(pl.t)+'</b></div></div><small class="hint">Ризик '+pl.risk.toFixed(2)+"%"+(price?" · вхід на "+((pl.e-price)/price*100).toFixed(2)+"% від ціни":"")+". "+esc(R.order&&R.order.note)+"</small>";
+  else h+='<small class="hint">'+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
   h+="</div>";
+  if(pl&&addedId)h+='<div class="card hd"><small>📒 Угоду додано в журнал («Очікує»)</small><button class="lnk" id="undo">Прибрати</button></div>';
   const fx=((M&&M.facts)||[]).slice(0,3);
-  if(fx.length)h+='<div class="card"><small class="hint">РИНОК · BINANCE</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
-  if(pl)h+='<button class="btn" id="tojr">Додати в журнал</button>';
-  p.innerHTML=h;
-  if(pl)$("tojr").onclick=()=>{setTab("jr");openSheet({coin:R.asset,side:R.bias,entry:pl.e,stop:pl.s,tp:pl.t,status:"pending"})};
+  if(fx.length)h+='<div class="card"><small class="hint">📊 РИНОК · BINANCE</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
+  p.innerHTML=h+ft;
+  if(pl&&addedId)$("undo").onclick=()=>{J.items=J.items.filter(x=>x.id!==addedId);addedId=null;saveJ();renderPane("v")};
 }
 
 /* ---------- журнал ---------- */

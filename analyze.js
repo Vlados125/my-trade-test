@@ -14,8 +14,8 @@ const INSTR = `Ти — досвідчений свінг-трейдер (Smart 
 - Пиши українською, дуже стисло, без markdown-символів у текстових полях.`;
 
 const SCHEMA = `ВІДПОВІДЬ — ЛИШЕ ОДИН JSON-ОБ'ЄКТ, без markdown, без тексту до і після:
-{"asset":"BTC","bias":"long|short|none","summary":"до 200 символів: тренд, де ціна в діапазоні, головна ідея і рекомендація","zones":[{"side":"buy|sell","from":0,"to":0,"type":"OB/FVG/ліквідність","why":"до 60 символів"}],"scenarios":[{"name":"А: коротка назва","pct":50,"text":"до 80 символів"},{"name":"Б: ...","pct":30,"text":"..."},{"name":"В: флет / немає бачення","pct":20,"text":"..."}],"order":{"entry":null,"stop":null,"note":"до 90 символів: умова входу або чому краще не торгувати"}}
-Рівно 3 сценарії, сума pct = 100. Максимум 4 зони. Числа — числами, не рядками.`;
+{"asset":"BTC","bias":"long|short|none","trend":"до 70 символів: напрямок старшого ТФ і структура","position":"до 70 символів: Premium/Discount/Equilibrium і де ціна відносно ключових зон","idea":"до 100 символів: короткий висновок-рекомендація","zones":[{"side":"buy|sell","from":0,"to":0,"type":"OB/FVG/ліквідність","why":"до 40 символів"}],"scenarios":[{"name":"А: коротка назва","pct":50,"text":"до 60 символів"},{"name":"Б: ...","pct":30,"text":"..."},{"name":"В: флет / немає бачення","pct":20,"text":"..."}],"order":{"entry":null,"stop":null,"note":"до 70 символів: умова входу або чому краще не торгувати"}}
+Рівно 3 сценарії, сума pct = 100. Максимум 3 зони. Числа — числами, не рядками.`;
 
 async function fetchMarket(asset) {
   const out = { symbol: asset + "USDT", price: null, change: null, funding: null, facts: [] };
@@ -73,7 +73,7 @@ async function callAI(messages, key) {
     r = await fetch(BASE, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-      body: JSON.stringify({ model: MODEL, messages, temperature: 0.3, max_tokens: 8192, ...(useFmt ? { response_format: { type: "json_object" } } : {}) }),
+      body: JSON.stringify({ model: MODEL, messages, temperature: 0.3, max_tokens: 4096, ...(useFmt ? { response_format: { type: "json_object" } } : {}) }),
     });
     data = await r.json().catch(() => ({}));
     if (r.status === 400 && useFmt) { useFmt = false; continue; }
@@ -126,13 +126,15 @@ module.exports = async (req, res) => {
     const text = data.choices?.[0]?.message?.content || "";
     if (!text) return res.status(502).json({ error: "Порожня відповідь моделі" });
 
+    let tk = data.usage?.total_tokens || 0;
     let obj = parse(text);
     if (!obj) {
       const fix = await callAI([{ role: "user", content: [{ type: "text", text: `Перетвори аналіз нижче у JSON за шаблоном. Використовуй лише дані з аналізу; якщо чіткого входу немає — bias "none", entry і stop null.\n\n${SCHEMA}\n\nАНАЛІЗ:\n${text.slice(0, 12000)}` }] }], GEMINI_API_KEY);
+      tk += fix.data?.usage?.total_tokens || 0;
       obj = parse(fix.data?.choices?.[0]?.message?.content);
     }
     const m = { symbol: market.symbol, price: market.price, change: market.change, funding: market.funding, facts: market.facts };
-    return res.status(200).json({ analysis: obj, result: obj ? "" : text, market: m });
+    return res.status(200).json({ analysis: obj, result: obj ? "" : text, market: m, tokens: tk });
   } catch (e) {
     return res.status(500).json({ error: "Помилка сервера: " + e.message });
   }
