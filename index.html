@@ -54,6 +54,7 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 .shc{position:relative;width:100%;max-height:92vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.err{color:var(--r);min-height:16px;margin:2px 0;font-size:12px}
 .ln{display:flex;gap:8px;margin-top:8px}.ln p{margin:0}.idea{background:var(--bg);border-left:3px solid var(--ac);border-radius:8px;padding:8px 10px;margin:10px 0;font-weight:600}
+.rr{margin:6px 0 2px;font-size:13px}
 </style>
 </head>
 <body>
@@ -191,13 +192,15 @@ segInit("rseg",renderPane);
 
 function plan(){
   if(!R||R.raw)return null;
-  const bias=R.bias,e=num(R.order&&R.order.entry),s=num(R.order&&R.order.stop);
+  const bias=R.bias,e=num(R.order&&R.order.entry),s=num(R.order&&R.order.stop);let t=num(R.order&&R.order.take);
   if((bias!=="long"&&bias!=="short")||e==null||s==null)return null;
   if((bias==="long"&&s>=e)||(bias==="short"&&s<=e))return null;
-  return{e,s,t:rnd(e+2*(e-s)),risk:Math.abs(e-s)/e*100};
+  if(t==null||(bias==="long"&&t<=e)||(bias==="short"&&t>=e))t=rnd(e+2*(e-s));
+  const risk=Math.abs(e-s),rr=Math.abs(t-e)/risk;
+  return{e,s,t:rnd(t),rr,riskPct:risk/e*100,rewPct:Math.abs(t-e)/e*100,low:rr<1.95};
 }
 function autoAdd(){
-  addedId=null;const pl=plan();if(!pl)return;
+  addedId=null;const pl=plan();if(!pl||pl.low)return;
   const coin=String(R.asset||"").toUpperCase();
   const dup=J.items.find(t=>t.coin===coin&&num(t.entry)===pl.e&&num(t.stop)===pl.s&&t.status==="pending");
   if(dup){addedId=dup.id;return}
@@ -219,16 +222,16 @@ function renderPane(v){
       return '<div class="card"><div class="hd"><b>'+fmt(num(z.from))+" – "+fmt(num(z.to))+'</b><span class="bd '+(sell?"short":"long")+'">'+(sell?"🔴 ПРОДАЖ":"🟢 ПОКУПКА")+"</span></div><small><b>"+esc(z.type)+'</b></small><br><small class="hint">'+esc(z.why)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>')+ft;
     return;
   }
-  const pl=plan(),price=M&&num(M.price),lab=pl?(R.bias==="long"?"🟢 ЛОНГ":"🔴 ШОРТ"):"⚪ ЧЕКАТИ",cls=pl?R.bias:"none";
+  const p0=plan(),pl=p0&&!p0.low?p0:null,price=M&&num(M.price),lab=pl?(R.bias==="long"?"🟢 ЛОНГ":"🔴 ШОРТ"):"⚪ ЧЕКАТИ",cls=pl?R.bias:"none";
   let h='<div class="card"><div class="hd"><b style="font-size:17px">'+esc(R.asset)+'</b><span class="bd big '+cls+'">'+lab+"</span></div>";
-  if(M&&price!=null)h+='<small class="hint">💵 '+fmt(price)+" · 24г "+(num(M.change)>0?"+":"")+esc(M.change)+"% · funding "+esc(M.funding)+"</small>";
+  if(price!=null)h+='<small class="hint">💵 Ціна '+fmt(price)+"</small>";
   h+='<div class="ln"><span>📈</span><p><b>Тренд.</b> '+esc(R.trend)+'</p></div><div class="ln"><span>📍</span><p><b>Позиція.</b> '+esc(R.position)+"</p></div>";
   h+='<div class="idea">💡 '+esc(R.idea)+"</div>";
-  if(pl)h+='<div class="grid3"><div class="nm"><small>🎯 Вхід</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>🛑 Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>✅ Тейк 1:2</small><b>'+fmt(pl.t)+'</b></div></div><small class="hint">Ризик '+pl.risk.toFixed(2)+"%"+(price?" · вхід на "+((pl.e-price)/price*100).toFixed(2)+"% від ціни":"")+". "+esc(R.order&&R.order.note)+"</small>";
-  else h+='<small class="hint">'+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
+  if(pl)h+='<div class="grid3"><div class="nm"><small>🎯 Вхід</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>🛑 Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>✅ Тейк</small><b>'+fmt(pl.t)+'</b></div></div><div class="rr">R:R <b>1:'+pl.rr.toFixed(1)+'</b> · стоп −'+pl.riskPct.toFixed(1)+'% від входу · тейк +'+pl.rewPct.toFixed(1)+'%</div><small class="hint">'+(price?"Вхід "+((pl.e-price)/price*100).toFixed(1)+"% від поточної ціни. ":"")+esc(R.order&&R.order.note)+"</small>";
+  else h+='<small class="hint">'+(p0&&p0.low?"⚠️ R:R лише 1:"+p0.rr.toFixed(1)+" — нижче 1:2, краще пропустити. ":"")+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
   h+="</div>";
   if(pl&&addedId)h+='<div class="card hd"><small>📒 Угоду додано в журнал («Очікує»)</small><button class="lnk" id="undo">Прибрати</button></div>';
-  const fx=((M&&M.facts)||[]).slice(0,3);
+  const fx=[];
   if(fx.length)h+='<div class="card"><small class="hint">📊 РИНОК · BINANCE</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
   p.innerHTML=h+ft;
   if(pl&&addedId)$("undo").onclick=()=>{J.items=J.items.filter(x=>x.id!==addedId);addedId=null;saveJ();renderPane("v")};
