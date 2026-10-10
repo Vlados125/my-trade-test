@@ -167,6 +167,7 @@ function parseJSON(t){
   t=t.replace(/```json|```/g,"");const a=t.indexOf("{"),b=t.lastIndexOf("}");
   if(a<0||b<=a)return null;try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}
 }
+const mdLite=t=>esc(t).replace(/^\s*#{1,6}\s*(.+)$/gm,"<b>$1</b>").replace(/^\s*[-*]\s+/gm,"• ").replace(/^\s*-{3,}\s*$/gm,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\*(.+?)\*/g,"$1").replace(/\n{3,}/g,"\n\n");
 let R=null,M=null;
 $("go").onclick=async()=>{
   $("go").disabled=true;setSt("Аналізую… 20–60 секунд");
@@ -175,7 +176,7 @@ $("go").onclick=async()=>{
     const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData,asset,images})});
     let d={};try{d=await r.json()}catch(e){}
     if(!r.ok)throw new Error(d.error||(r.status===413?"Скріншоти завеликі":"Помилка сервера ("+r.status+")"));
-    R=parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;
+    R=d.analysis||parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;$("rseg").hidden=!!R.raw;
     if(R&&!R.raw&&!R.asset)R.asset=asset;
     $("up").hidden=true;$("res").hidden=false;setSeg("rseg","v");renderPane("v");setSt("");
     tg.HapticFeedback&&tg.HapticFeedback.notificationOccurred("success");
@@ -196,7 +197,7 @@ function plan(){
 }
 function renderPane(v){
   const p=$("pane");
-  if(!R||R.raw){p.innerHTML='<div class="card raw">'+esc(R?R.raw:"")+"</div>";return}
+  if(!R||R.raw){p.innerHTML='<div class="card raw">'+mdLite(R?R.raw:"")+"</div>";return}
   if(v==="s"){
     p.innerHTML=(R.scenarios||[]).slice(0,3).map(s=>{const n=Math.min(100,Math.max(0,num(s.pct)||0));
       return '<div class="card"><div class="hd"><b>'+esc(s.name)+"</b><b>"+Math.round(n)+'%</b></div><div class="bar"><i style="width:'+n+'%"></i></div><small class="hint">'+esc(s.text)+"</small></div>"}).join("")||'<p class="hint c">Немає даних</p>';
@@ -215,8 +216,8 @@ function renderPane(v){
     h+='<div class="grid3"><div class="nm"><small>Вхід (ліміт)</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>Тейк 1:2</small><b>'+fmt(pl.t)+'</b></div></div><small class="hint">Ризик до стопу '+pl.risk.toFixed(2)+"%"+(price?" · вхід на "+((pl.e-price)/price*100).toFixed(2)+"% від ціни":"")+". "+esc(R.order&&R.order.note)+"</small>";
   }else h+='<small class="hint">'+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
   h+="</div>";
-  const fx=(R.factors||[]).slice(0,3);
-  if(fx.length)h+='<div class="card"><small class="hint">ДОДАТКОВІ ФАКТОРИ</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
+  const fx=((M&&M.facts)||[]).slice(0,3);
+  if(fx.length)h+='<div class="card"><small class="hint">РИНОК · BINANCE</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
   if(pl)h+='<button class="btn" id="tojr">Додати в журнал</button>';
   p.innerHTML=h;
   if(pl)$("tojr").onclick=()=>{setTab("jr");openSheet({coin:R.asset,side:R.bias,entry:pl.e,stop:pl.s,tp:pl.t,status:"pending"})};
