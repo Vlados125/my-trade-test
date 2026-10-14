@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Swing AI Analyzer</title>
+<title>AI Analyzer</title>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{--bg:var(--tg-theme-bg-color,#0f1419);--card:var(--tg-theme-secondary-bg-color,#182028);--tx:var(--tg-theme-text-color,#e8edf2);--hint:var(--tg-theme-hint-color,#8a97a5);--ac:var(--tg-theme-button-color,#2f9e6f);--act:var(--tg-theme-button-text-color,#fff);--g:#2fb67c;--r:#e5534b;--ln:rgba(128,140,155,.25)}
@@ -24,14 +24,11 @@ nav button.on{color:var(--ac)}
 .lnk{background:none;border:0;color:var(--hint);font-size:12px;text-decoration:underline;padding:8px}
 .in{width:100%;padding:11px;border-radius:10px;border:1px solid var(--ln);background:var(--card);color:var(--tx);font-size:16px;margin-top:4px}
 label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
-.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
-.tile{position:relative;aspect-ratio:3/5;max-height:42vh;background:var(--card);border:1px dashed var(--ln);border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;font-size:12px;color:var(--hint);cursor:pointer}
-.tile input{display:none}.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:none}
-.tile.f{border-style:solid}.tile.f img{display:block}
-.tile span{position:relative;padding:4px}.tile.f span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);color:#fff}
-.tile b{display:block;font-size:20px;color:var(--tx)}.tile.f b{display:none}
+.coins{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:6px 0 14px}
+.coin{border:1px solid var(--ln);background:var(--card);color:var(--tx);border-radius:10px;padding:11px 0;font-size:13px;font-weight:600}
+.coin.on{background:var(--ac);color:var(--act);border-color:var(--ac)}
 .seg{display:flex;background:var(--card);border-radius:10px;padding:3px;gap:3px;margin-bottom:10px}
-.seg button{flex:1;border:0;background:none;color:var(--hint);padding:8px 4px;border-radius:8px;font-size:13px;font-weight:600}
+.seg button{flex:1;border:0;background:none;color:var(--hint);padding:9px 4px;border-radius:8px;font-size:13px;font-weight:600}
 .seg button.on{background:var(--bg);color:var(--tx)}
 .card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:8px}
 .hd{display:flex;justify-content:space-between;align-items:center;gap:8px}
@@ -41,8 +38,11 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
 .nm{background:var(--bg);border-radius:10px;padding:8px 4px;text-align:center}.nm small{display:block;color:var(--hint)}.nm b{font-size:15px}
 .nm.ok b{color:var(--g)}.nm.no b{color:var(--r)}
-.bar{height:6px;background:var(--bg);border-radius:4px;margin:8px 0 4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
-.fx{font-size:13px;margin:4px 0}.raw{white-space:pre-wrap;font-size:13px}
+.bar{height:6px;background:var(--bg);border-radius:4px;margin:8px 0 4px;overflow:hidden}.bar i{display:block;height:100%}
+.raw{white-space:pre-wrap;font-size:13px}
+.ln{display:flex;gap:8px;margin-top:8px}.ln p{margin:0}
+.idea{background:var(--bg);border-left:3px solid var(--ac);border-radius:8px;padding:8px 10px;margin:10px 0;font-weight:600}
+.rr{margin:6px 0 2px;font-size:13px}
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-bottom:10px}
 .st{background:var(--card);border-radius:12px;padding:8px 2px;text-align:center}.st b{display:block;font-size:15px}.st small{color:var(--hint);font-size:10px}
 .st.pos b{color:var(--g)}.st.neg b{color:var(--r)}
@@ -53,24 +53,19 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 .shbg{position:absolute;inset:0;background:rgba(0,0,0,.55)}
 .shc{position:relative;width:100%;max-height:92vh;overflow:auto;background:var(--bg);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}.err{color:var(--r);min-height:16px;margin:2px 0;font-size:12px}
-.ln{display:flex;gap:8px;margin-top:8px}.ln p{margin:0}.idea{background:var(--bg);border-left:3px solid var(--ac);border-radius:8px;padding:8px 10px;margin:10px 0;font-weight:600}
-.rr{margin:6px 0 2px;font-size:13px}
 </style>
 </head>
 <body>
 <div id="app">
-  <header><h1>Swing AI Analyzer</h1></header>
+  <header><h1>AI Analyzer</h1></header>
   <main>
     <section id="v-an">
       <div id="up">
-        <label>Монета<input class="in" id="asset" list="coins" value="BTC" autocapitalize="characters" autocomplete="off"></label>
-        <datalist id="coins"><option>BTC</option><option>ETH</option><option>SOL</option><option>BNB</option><option>XRP</option><option>ADA</option><option>AVAX</option><option>LINK</option><option>DOT</option><option>NEAR</option></datalist>
-        <div class="tiles">
-          <label class="tile"><input type="file" accept="image/*"><img alt=""><span><b>1</b>Старший ТФ<br>1W / 1D</span></label>
-          <label class="tile"><input type="file" accept="image/*"><img alt=""><span><b>2</b>Середній ТФ<br>1D / 4H</span></label>
-          <label class="tile"><input type="file" accept="image/*"><img alt=""><span><b>3</b>Робочий ТФ<br>4H</span></label>
-        </div>
-        <button class="btn" id="go" disabled>Проаналізувати</button>
+        <label style="margin:0">Монета</label>
+        <div class="coins" id="coins"></div>
+        <div class="seg" id="mode"><button data-v="intra">Інтрадей</button><button data-v="swing">Свінг</button></div>
+        <p class="hint c" id="mhint" style="margin:0 0 4px"></p>
+        <button class="btn" id="go">Проаналізувати</button>
         <p id="st" class="c hint"></p>
       </div>
       <div id="res" hidden>
@@ -80,6 +75,7 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
       </div>
     </section>
     <section id="v-jr" hidden>
+      <div class="seg" id="jmode"><button data-v="intra">Інтрадей</button><button data-v="swing">Свінг</button></div>
       <div class="stats" id="jsum"></div>
       <button class="btn" id="jadd" style="margin:0 0 10px">+ Нова угода</button>
       <div id="jlist"></div>
@@ -93,12 +89,13 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
   <div class="shc">
     <h2 id="shT">Нова угода</h2>
     <label>Монета<input class="in" id="fc" placeholder="BTC" autocapitalize="characters"></label>
+    <div class="seg" id="fmode"><button data-v="intra">Інтрадей</button><button data-v="swing">Свінг</button></div>
     <div class="seg" id="fside"><button data-v="long" class="on">Лонг</button><button data-v="short">Шорт</button></div>
     <div class="two">
       <label>Ціна ордера<input class="in" id="fe" inputmode="decimal"></label>
       <label>Стоп-лосс<input class="in" id="fs" inputmode="decimal"></label>
     </div>
-    <label>Тейк-профіт (авто 1:2, можна змінити)<input class="in" id="ft" inputmode="decimal"></label>
+    <label>Тейк-профіт (авто за R:R режиму, можна змінити)<input class="in" id="ft" inputmode="decimal"></label>
     <div class="seg" id="fst"><button data-v="pending" class="on">Очікує</button><button data-v="tp">Тейк</button><button data-v="sl">Стоп</button><button data-v="cancel">Скасовано</button></div>
     <p class="err" id="fer"></p>
     <button class="btn" id="fsave">Зберегти</button>
@@ -109,14 +106,16 @@ label{display:block;font-size:12px;color:var(--hint);margin-bottom:8px}
 <script>
 const tg=window.Telegram.WebApp;tg.ready();tg.expand();
 try{tg.disableVerticalSwipes&&tg.disableVerticalSwipes()}catch(e){}
-const MAX_SIDE=1280;
+const COINS=["BTC","ETH","BNB","SOL","XRP","DOGE","ADA","TRX","AVAX","LINK","DOT","LTC","BCH","NEAR","SUI","APT","UNI","ATOM","ARB","INJ"];
+const RRMIN={intra:3,swing:2},MH={intra:"1D · 4H · 1H  |  R:R від 1:3",swing:"1W · 1D · 4H  |  R:R від 1:2"};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const num=v=>{if(typeof v==="number")return isFinite(v)?v:null;if(v==null||v==="")return null;const n=parseFloat(String(v).replace(/\s/g,"").replace(",","."));return isFinite(n)?n:null};
 const fmt=n=>n==null?"—":Number(n).toLocaleString("uk-UA",{maximumFractionDigits:8});
 const rnd=n=>+Number(n).toPrecision(7);
+const mdLite=t=>esc(t).replace(/^\s*#{1,6}\s*(.+)$/gm,"<b>$1</b>").replace(/^\s*[-*]\s+/gm,"• ").replace(/^\s*-{3,}\s*$/gm,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\*(.+?)\*/g,"$1").replace(/\n{3,}/g,"\n\n");
 
-/* ---------- сховище журналу ---------- */
+/* сховище */
 const cs=(tg.CloudStorage&&tg.isVersionAtLeast&&tg.isVersionAtLeast("6.9"))?tg.CloudStorage:null;
 const cget=k=>new Promise(r=>cs?cs.getItem(k,(e,v)=>r(e?"":v||"")):r(""));
 const cset=(k,v)=>new Promise(r=>cs?cs.setItem(k,v,()=>r()):r());
@@ -138,79 +137,82 @@ async function saveJ(){
   for(let i=ch.length;i<old;i++)await cdel("j"+i);
 }
 
-/* ---------- навігація ---------- */
-function setTab(t){
-  $("v-an").hidden=t!=="an";$("v-jr").hidden=t!=="jr";
-  $("n-an").classList.toggle("on",t==="an");$("n-jr").classList.toggle("on",t==="jr");
-  if(t==="jr")renderJ();
-}
-$("n-an").onclick=()=>setTab("an");$("n-jr").onclick=()=>setTab("jr");
+/* навігація й сегменти */
 function segInit(id,cb){$(id).onclick=e=>{const b=e.target.closest("button");if(!b)return;[...$(id).children].forEach(x=>x.classList.toggle("on",x===b));cb&&cb(b.dataset.v)}}
 const getSeg=id=>($(id).querySelector(".on")||{dataset:{}}).dataset.v;
 const setSeg=(id,v)=>[...$(id).children].forEach(x=>x.classList.toggle("on",x.dataset.v===v));
+function setTab(t){
+  $("v-an").hidden=t!=="an";$("v-jr").hidden=t!=="jr";
+  $("n-an").classList.toggle("on",t==="an");$("n-jr").classList.toggle("on",t==="jr");
+  if(t==="jr"){setSeg("jmode",JM);renderJ()}
+}
+$("n-an").onclick=()=>setTab("an");$("n-jr").onclick=()=>setTab("jr");
 
-/* ---------- скріншоти ---------- */
-const images=[null,null,null];
-function compress(file){return new Promise((res,rej)=>{
-  const url=URL.createObjectURL(file),img=new Image();
-  img.onload=()=>{const k=Math.min(1,MAX_SIDE/Math.max(img.width,img.height)),c=document.createElement("canvas");
-    c.width=Math.round(img.width*k);c.height=Math.round(img.height*k);c.getContext("2d").drawImage(img,0,0,c.width,c.height);
-    URL.revokeObjectURL(url);res(c.toDataURL("image/jpeg",0.82))};
-  img.onerror=()=>rej(new Error("Не вдалося прочитати зображення"));img.src=url})}
-document.querySelectorAll(".tile").forEach((t,i)=>{
-  t.querySelector("input").onchange=async e=>{const f=e.target.files[0];if(!f)return;
-    try{const d=await compress(f);images[i]=d.split(",")[1];t.querySelector("img").src=d;t.classList.add("f");$("go").disabled=images.some(x=>!x)}
-    catch(err){setSt(err.message,true)}}});
-function setSt(m,err){$("st").textContent=m;$("st").style.color=err?"var(--r)":""}
-function resetUp(){images.fill(null);document.querySelectorAll(".tile").forEach(t=>{t.classList.remove("f");t.querySelector("img").removeAttribute("src");t.querySelector("input").value=""});$("go").disabled=true;setSt("")}
+/* вибір монети і режиму */
+let coin=COINS.includes(lget("coin"))?lget("coin"):"BTC",AM=RRMIN[lget("mode")]?lget("mode"):"swing",RM=AM,JM=RRMIN[lget("jm")]?lget("jm"):"swing";
+$("coins").innerHTML=COINS.map(c=>'<button class="coin" data-c="'+c+'">'+c+"</button>").join("");
+function syncSel(){[...$("coins").children].forEach(b=>b.classList.toggle("on",b.dataset.c===coin));setSeg("mode",AM);$("mhint").textContent=MH[AM]}
+$("coins").onclick=e=>{const b=e.target.closest(".coin");if(!b)return;coin=b.dataset.c;lset("coin",coin);syncSel()};
+segInit("mode",v=>{AM=v;lset("mode",v);syncSel()});
+syncSel();
 
-/* ---------- аналіз ---------- */
+/* аналіз */
 function parseJSON(t){
   t=t.replace(/```json|```/g,"");const a=t.indexOf("{"),b=t.lastIndexOf("}");
   if(a<0||b<=a)return null;try{return JSON.parse(t.slice(a,b+1))}catch(e){return null}
 }
-const mdLite=t=>esc(t).replace(/^\s*#{1,6}\s*(.+)$/gm,"<b>$1</b>").replace(/^\s*[-*]\s+/gm,"• ").replace(/^\s*-{3,}\s*$/gm,"").replace(/\*\*(.+?)\*\*/g,"<b>$1</b>").replace(/\*(.+?)\*/g,"$1").replace(/\n{3,}/g,"\n\n");
-let R=null,M=null,U=0,addedId=null;
+function setSt(m,err){$("st").textContent=m;$("st").style.color=err?"var(--r)":""}
+let R=null,M=null,U=0,FC=false,addedId=null;
+function show(d){
+  R=d.analysis||parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;RM=d.mode||AM;
+  FC=!!d.cached||!!d.fromCache;U=FC?0:(d.tokens||0);
+  if(R&&!R.raw&&!R.asset)R.asset=coin;
+  $("rseg").hidden=!!R.raw;autoAdd();
+  $("up").hidden=true;$("res").hidden=false;setSeg("rseg","v");renderPane("v");setSt("");
+}
 $("go").onclick=async()=>{
-  $("go").disabled=true;setSt("Аналізую… 20–60 секунд");
+  const b=Math.floor(Date.now()/3e5),key="an:"+coin+":"+AM;
+  let hit=null;try{hit=JSON.parse(lget(key)||"null")}catch(e){}
+  $("go").disabled=true;
   try{
-    const asset=($("asset").value||"BTC").trim().toUpperCase();
-    const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData,asset,images})});
-    let d={};try{d=await r.json()}catch(e){}
-    if(!r.ok)throw new Error(d.error||(r.status===413?"Скріншоти завеликі":"Помилка сервера ("+r.status+")"));
-    R=d.analysis||parseJSON(d.result||"")||{raw:d.result||""};M=d.market||null;U=d.tokens||0;$("rseg").hidden=!!R.raw;autoAdd();
-    if(R&&!R.raw&&!R.asset)R.asset=asset;
-    $("up").hidden=true;$("res").hidden=false;setSeg("rseg","v");renderPane("v");setSt("");
+    if(hit&&hit.b===b){show(Object.assign({},hit.d,{fromCache:true,mode:AM}))}
+    else{
+      setSt("Збираю дані Binance й аналізую… 15–40 с");
+      const r=await fetch("/api/analyze",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({initData:tg.initData,asset:coin,mode:AM})});
+      let d={};try{d=await r.json()}catch(e){}
+      if(!r.ok)throw new Error(d.error||"Помилка сервера ("+r.status+")");
+      lset(key,JSON.stringify({b,d}));show(d);
+    }
     tg.HapticFeedback&&tg.HapticFeedback.notificationOccurred("success");
   }catch(e){
     setSt(e.message==="Failed to fetch"?"Немає з'єднання з сервером.":e.message,true);
     tg.HapticFeedback&&tg.HapticFeedback.notificationOccurred("error");
-  }finally{$("go").disabled=images.some(x=>!x)}
+  }finally{$("go").disabled=false}
 };
-$("again").onclick=()=>{R=null;M=null;resetUp();$("res").hidden=true;$("up").hidden=false};
+$("again").onclick=()=>{R=null;M=null;$("res").hidden=true;$("up").hidden=false};
 segInit("rseg",renderPane);
 
 function plan(){
   if(!R||R.raw)return null;
-  const bias=R.bias,e=num(R.order&&R.order.entry),s=num(R.order&&R.order.stop);let t=num(R.order&&R.order.take);
+  const mr=RRMIN[RM]||2,bias=R.bias,e=num(R.order&&R.order.entry),s=num(R.order&&R.order.stop);let t=num(R.order&&R.order.take);
   if((bias!=="long"&&bias!=="short")||e==null||s==null)return null;
   if((bias==="long"&&s>=e)||(bias==="short"&&s<=e))return null;
-  if(t==null||(bias==="long"&&t<=e)||(bias==="short"&&t>=e))t=rnd(e+2*(e-s));
+  if(t==null||(bias==="long"&&t<=e)||(bias==="short"&&t>=e))t=rnd(e+mr*(e-s));
   const risk=Math.abs(e-s),rr=Math.abs(t-e)/risk;
-  return{e,s,t:rnd(t),rr,riskPct:risk/e*100,rewPct:Math.abs(t-e)/e*100,low:rr<1.95};
+  return{e,s,t:rnd(t),rr,mr,riskPct:risk/e*100,rewPct:Math.abs(t-e)/e*100,low:rr<mr-0.05};
 }
 function autoAdd(){
   addedId=null;const pl=plan();if(!pl||pl.low)return;
-  const coin=String(R.asset||"").toUpperCase();
-  const dup=J.items.find(t=>t.coin===coin&&num(t.entry)===pl.e&&num(t.stop)===pl.s&&t.status==="pending");
+  const c=String(R.asset||coin).toUpperCase();
+  const dup=J.items.find(t=>t.coin===c&&(t.mode||"swing")===RM&&num(t.entry)===pl.e&&num(t.stop)===pl.s&&t.status==="pending");
   if(dup){addedId=dup.id;return}
-  const t={id:Date.now(),coin,side:R.bias,entry:pl.e,stop:pl.s,tp:pl.t,status:"pending"};
+  const t={id:Date.now(),coin:c,mode:RM,side:R.bias,entry:pl.e,stop:pl.s,tp:pl.t,status:"pending"};
   J.items.push(t);addedId=t.id;saveJ();
 }
 function renderPane(v){
   const p=$("pane");
   if(!R||R.raw){p.innerHTML='<div class="card raw">'+mdLite(R?R.raw:"")+"</div>";return}
-  const ft=U?'<p class="c hint" style="margin:4px 0 0"><small>⚙️ Токенів на аналіз: '+U+"</small></p>":"";
+  const ft='<p class="c hint" style="margin:4px 0 0"><small>'+(FC?"♻️ Результат з кешу (5 хв)":U?"⚙️ Токенів на аналіз: "+U:"")+"</small></p>";
   if(v==="s"){
     const em=["🎯","🔄","➖"],col=["var(--g)","#e0a526","var(--hint)"];
     p.innerHTML=((R.scenarios||[]).slice(0,3).map((s,i)=>{const n=Math.min(100,Math.max(0,num(s.pct)||0));
@@ -223,30 +225,29 @@ function renderPane(v){
     return;
   }
   const p0=plan(),pl=p0&&!p0.low?p0:null,price=M&&num(M.price),lab=pl?(R.bias==="long"?"🟢 ЛОНГ":"🔴 ШОРТ"):"⚪ ЧЕКАТИ",cls=pl?R.bias:"none";
-  let h='<div class="card"><div class="hd"><b style="font-size:17px">'+esc(R.asset)+'</b><span class="bd big '+cls+'">'+lab+"</span></div>";
+  let h='<div class="card"><div class="hd"><b style="font-size:17px">'+esc(R.asset)+" · "+(RM==="intra"?"Інтрадей":"Свінг")+'</b><span class="bd big '+cls+'">'+lab+"</span></div>";
   if(price!=null)h+='<small class="hint">💵 Ціна '+fmt(price)+"</small>";
   h+='<div class="ln"><span>📈</span><p><b>Тренд.</b> '+esc(R.trend)+'</p></div><div class="ln"><span>📍</span><p><b>Позиція.</b> '+esc(R.position)+"</p></div>";
   h+='<div class="idea">💡 '+esc(R.idea)+"</div>";
   if(pl)h+='<div class="grid3"><div class="nm"><small>🎯 Вхід</small><b>'+fmt(pl.e)+'</b></div><div class="nm no"><small>🛑 Стоп</small><b>'+fmt(pl.s)+'</b></div><div class="nm ok"><small>✅ Тейк</small><b>'+fmt(pl.t)+'</b></div></div><div class="rr">R:R <b>1:'+pl.rr.toFixed(1)+'</b> · стоп −'+pl.riskPct.toFixed(1)+'% від входу · тейк +'+pl.rewPct.toFixed(1)+'%</div><small class="hint">'+(price?"Вхід "+((pl.e-price)/price*100).toFixed(1)+"% від поточної ціни. ":"")+esc(R.order&&R.order.note)+"</small>";
-  else h+='<small class="hint">'+(p0&&p0.low?"⚠️ R:R лише 1:"+p0.rr.toFixed(1)+" — нижче 1:2, краще пропустити. ":"")+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
+  else h+='<small class="hint">'+(p0&&p0.low?"⚠️ R:R лише 1:"+p0.rr.toFixed(1)+" — нижче 1:"+p0.mr+", краще пропустити. ":"")+esc((R.order&&R.order.note)||"Немає чіткого входу — краще утриматися від угоди.")+"</small>";
   h+="</div>";
-  if(pl&&addedId)h+='<div class="card hd"><small>📒 Угоду додано в журнал («Очікує»)</small><button class="lnk" id="undo">Прибрати</button></div>';
-  const fx=[];
-  if(fx.length)h+='<div class="card"><small class="hint">📊 РИНОК · BINANCE</small>'+fx.map(f=>'<p class="fx">• '+esc(f)+"</p>").join("")+"</div>";
+  if(pl&&addedId)h+='<div class="card hd"><small>📒 Додано в журнал ('+(RM==="intra"?"Інтрадей":"Свінг")+', «Очікує»)</small><button class="lnk" id="undo">Прибрати</button></div>';
   p.innerHTML=h+ft;
   if(pl&&addedId)$("undo").onclick=()=>{J.items=J.items.filter(x=>x.id!==addedId);addedId=null;saveJ();renderPane("v")};
 }
 
-/* ---------- журнал ---------- */
+/* журнал */
 const ST={pending:["Очікує","pe"],tp:["Тейк","ok"],sl:["Стоп","no"],cancel:["Скасовано","ca"]};
-const rOf=t=>{if(t.status==="sl")return -1;if(t.status!=="tp")return 0;const e=num(t.entry),s=num(t.stop),p=num(t.tp);return(e!=null&&s!=null&&p!=null&&e!==s)?Math.abs(p-e)/Math.abs(e-s):2};
+const rOf=t=>{if(t.status==="sl")return -1;if(t.status!=="tp")return 0;const e=num(t.entry),s=num(t.stop),p=num(t.tp);return(e!=null&&s!=null&&p!=null&&e!==s)?Math.abs(p-e)/Math.abs(e-s):RRMIN[t.mode||"swing"]};
+segInit("jmode",v=>{JM=v;lset("jm",v);renderJ()});
 function renderJ(){
-  const it=J.items,tp=it.filter(t=>t.status==="tp").length,sl=it.filter(t=>t.status==="sl").length,pend=it.filter(t=>t.status==="pending").length;
+  const it=J.items.filter(t=>(t.mode||"swing")===JM),tp=it.filter(t=>t.status==="tp").length,sl=it.filter(t=>t.status==="sl").length,pend=it.filter(t=>t.status==="pending").length;
   const sum=it.reduce((a,t)=>a+rOf(t),0),wr=tp+sl?Math.round(tp/(tp+sl)*100)+"%":"—";
   $("jsum").innerHTML=[["Очікує",pend,""],["Тейк",tp,"pos"],["Стоп",sl,sl?"neg":""],["Winrate",wr,""],["Профіт R",(sum>0?"+":"")+sum.toFixed(1),sum>0?"pos":sum<0?"neg":""]].map(a=>'<div class="st '+a[2]+'"><b>'+a[1]+"</b><small>"+a[0]+"</small></div>").join("");
   $("jlist").innerHTML=it.length?it.slice().sort((a,b)=>b.id-a.id).map(t=>{const s=ST[t.status]||ST.pending;
     return '<div class="tr" data-id="'+t.id+'"><div><b>'+esc(t.coin)+'</b> <span class="sd '+t.side+'">'+(t.side==="long"?"ЛОНГ":"ШОРТ")+'</span><br><small class="hint">'+fmt(num(t.entry))+" · SL "+fmt(num(t.stop))+" · TP "+fmt(num(t.tp))+"</small></div>"+
-      (t.status==="pending"?'<span class="qa"><button class="qb" data-q="tp">Тейк</button><button class="qb no" data-q="sl">Стоп</button></span>':'<span class="bd '+s[1]+'">'+s[0]+"</span>")+"</div>"}).join(""):'<p class="hint c">Поки порожньо. Додай першу угоду.</p>';
+      (t.status==="pending"?'<span class="qa"><button class="qb" data-q="tp">Тейк</button><button class="qb no" data-q="sl">Стоп</button></span>':'<span class="bd '+s[1]+'">'+s[0]+"</span>")+"</div>"}).join(""):'<p class="hint c">Поки порожньо.</p>';
 }
 $("jlist").onclick=e=>{
   const r=e.target.closest(".tr");if(!r)return;const t=J.items.find(x=>String(x.id)===r.dataset.id);if(!t)return;
@@ -259,28 +260,28 @@ $("jadd").onclick=()=>openSheet(null);
 let editId=null,tpManual=false;
 function openSheet(t,edit){
   editId=edit&&t?t.id:null;$("shT").textContent=editId?"Редагувати угоду":"Нова угода";
-  setSeg("fside",(t&&t.side)||"long");setSeg("fst",(t&&t.status)||"pending");
+  setSeg("fmode",(t&&t.mode)||JM);setSeg("fside",(t&&t.side)||"long");setSeg("fst",(t&&t.status)||"pending");
   $("fc").value=(t&&t.coin)||"";$("fe").value=t&&t.entry!=null?t.entry:"";$("fs").value=t&&t.stop!=null?t.stop:"";$("ft").value=t&&t.tp!=null?t.tp:"";
   tpManual=!!(editId&&t.tp!=null);$("fdel").hidden=!editId;$("fer").textContent="";$("sheet").hidden=false;
 }
 const closeSheet=()=>{$("sheet").hidden=true};
 $("shbg").onclick=closeSheet;
 function autoTp(){
-  if(tpManual)return;const e=num($("fe").value),s=num($("fs").value);
-  $("ft").value=(e!=null&&s!=null&&e!==s)?rnd(e+2*(e-s)):"";
+  if(tpManual)return;const e=num($("fe").value),s=num($("fs").value),f=RRMIN[getSeg("fmode")]||2;
+  $("ft").value=(e!=null&&s!=null&&e!==s)?rnd(e+f*(e-s)):"";
 }
 $("fe").oninput=autoTp;$("fs").oninput=autoTp;
 $("ft").oninput=()=>{tpManual=$("ft").value.trim()!==""};
-segInit("fside",()=>{});segInit("fst");
+segInit("fmode",autoTp);segInit("fside");segInit("fst");
 $("fsave").onclick=()=>{
-  const coin=$("fc").value.trim().toUpperCase(),side=getSeg("fside"),e=num($("fe").value),s=num($("fs").value);let tp=num($("ft").value);
+  const coin=$("fc").value.trim().toUpperCase(),side=getSeg("fside"),mode=getSeg("fmode")||"swing",e=num($("fe").value),s=num($("fs").value);let tp=num($("ft").value);
   const er=m=>{$("fer").textContent=m};
   if(!coin||e==null)return er("Вкажи монету та ціну ордера");
   if(s!=null&&((side==="long"&&s>=e)||(side==="short"&&s<=e)))return er(side==="long"?"Для лонга стоп має бути нижче входу":"Для шорта стоп має бути вище входу");
-  if(tp==null&&s!=null)tp=rnd(e+2*(e-s));
-  const o={coin,side,entry:e,stop:s,tp,status:getSeg("fst")||"pending"};
+  if(tp==null&&s!=null)tp=rnd(e+RRMIN[mode]*(e-s));
+  const o={coin,mode,side,entry:e,stop:s,tp,status:getSeg("fst")||"pending"};
   if(editId){const t=J.items.find(x=>x.id===editId);if(t)Object.assign(t,o)}else J.items.push(Object.assign({id:Date.now()},o));
-  closeSheet();renderJ();saveJ();
+  JM=mode;lset("jm",mode);setSeg("jmode",JM);closeSheet();renderJ();saveJ();
 };
 $("fdel").onclick=()=>{
   const go=ok=>{if(!ok)return;J.items=J.items.filter(x=>x.id!==editId);closeSheet();renderJ();saveJ()};
